@@ -56,9 +56,9 @@ jobs:
       - name: Build T386MON.EXE and t386mon.img, with the checks
         run: bash build.sh out
 
-      - name: Build again in another folder, and compare
+      - name: Build again in another folder and time zone, and compare
         run: |
-          bash build.sh /tmp/again > /tmp/again.log 2>&1 || { cat /tmp/again.log; exit 1; }
+          TZ=AWST-8 bash build.sh /tmp/again > /tmp/again.log 2>&1 || { cat /tmp/again.log; exit 1; }
           cmp out/T386MON.EXE /tmp/again/T386MON.EXE
           cmp out/t386mon.img /tmp/again/t386mon.img
           echo "the second build is the same, byte for byte"

@@ -18,7 +18,7 @@ You are assisting with **T386MON**, a performance monitor and benchmark for Wind
 - Debian 12 with `gcc-mingw-w64-i686-win32 binutils-mingw-w64-i686 mingw-w64-i686-dev mtools python3 binutils`.
 - `bash build.sh [OUT]`; `pecheck.py` or `cpucheck.py` failing stops the build. Keep zero warnings with `-Wall -Wextra`.
 - `bash port-test/build.sh [OUT]` for PPTEST.COM.
-- The build is reproducible: two builds in different folders give identical bytes. CI (a `debian:12` container with pinned package versions) checks this.
+- The build is reproducible: two builds in different folders or time zones give identical bytes (`build.sh` fixes `SOURCE_DATE_EPOCH` and `TZ=UTC`). CI (a `debian:12` container with pinned package versions) checks this.
 - There is no automated runtime test; the program is tested in Windows 95 on a PC harness and on the board by hand. Say which a figure comes from.
 
 ## Hard constraints

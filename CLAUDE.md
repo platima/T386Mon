@@ -20,7 +20,7 @@ T386MON is a performance monitor and benchmark for Windows 95 on tiny386 (github
 - Debian 12 (bookworm), WSL is fine: `gcc-mingw-w64-i686-win32 binutils-mingw-w64-i686 mingw-w64-i686-dev mtools python3 binutils`.
 - `bash build.sh [OUT]` builds and checks; `pecheck.py` and `cpucheck.py` failing stops the build. Zero compiler warnings with `-Wall -Wextra` is the standard.
 - `bash port-test/build.sh [OUT]` builds PPTEST.COM.
-- The build is reproducible (`SOURCE_DATE_EPOCH` is fixed in `build.sh`): two builds into different folders must give identical files. CI checks this. Only a source change may change the hashes, never the toolchain or the folder.
+- The build is reproducible (`build.sh` fixes `SOURCE_DATE_EPOCH` and builds in `TZ=UTC`): two builds in different folders and time zones must give identical files. CI checks this. Only a source change may change the hashes, never the folder, the time zone or the time of day.
 - CI runs in a `debian:12` container with the toolchain's package versions pinned in `ci.yml`. If Debian replaces one, update the pin and check that the output is still the same bytes.
 - There is no runtime test in this repo. T386MON was tested in Windows 95 on Plat's PC harness (the firmware's emulator core on a PC, outside this repo) and is tested on the board by Plat by hand. Say which one a figure comes from.
 

@@ -29,6 +29,10 @@ OUT=$(cd "$OUT" && pwd)
 P=i686-w64-mingw32
 CC=$P-gcc
 export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-1792713600}   # 2026-10-23 00:00 UTC
+# mformat dates the floppy's volume label from SOURCE_DATE_EPOCH in local
+# time, and FAT keeps no time zone, so the image is made in UTC: the same
+# bytes in every time zone.
+export TZ=UTC
 
 CFLAGS=(-std=gnu99 -Os -march=i386 -mtune=i386 -mno-80387 -mno-mmx -mno-sse -mno-sse2
         -mno-3dnow -mno-stack-arg-probe -mpreferred-stack-boundary=2 -ffreestanding

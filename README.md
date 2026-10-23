@@ -274,7 +274,7 @@ After the link, `build.sh` checks the program and stops if either check fails:
 - `src/pecheck.py` - a PE that Windows 95 loads (OS and subsystem version 4.0, no TLS or the like), importing only the 89 functions in `src/w95imports.txt`, each of them checked against Windows 95 OSR2's own DLLs.
 - `src/cpucheck.py` - 386 integer instructions only: no x87 (tiny386 runs Windows with `fpu = 0`), no MMX or SSE, nothing the 486 or later added.
 
-The build is reproducible: the same toolchain gives the same `T386MON.EXE` and `t386mon.img`, byte for byte, whichever folder it runs in. GitHub Actions builds both on every push, in a Debian 12 container with the toolchain's versions pinned, builds them a second time to prove they come out the same, and a version tag cuts a release with `SHA256SUMS`.
+The build is reproducible: the same toolchain gives the same `T386MON.EXE` and `t386mon.img`, byte for byte, whichever folder or time zone it runs in. GitHub Actions builds both on every push, in a Debian 12 container with the toolchain's versions pinned, builds them a second time elsewhere to prove they come out the same, and a version tag cuts a release with `SHA256SUMS`.
 
 ## Layout 📁
 
