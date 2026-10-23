@@ -1,0 +1,94 @@
+name: Release
+
+# A tag v<version> (v1.2 for T386MON 1.2; v1.2.0 is taken as the same) builds
+# T386MON exactly as CI does and publishes a GitHub release with
+# T386MON.EXE, t386mon.img and SHA256SUMS. The tag must match APP_VERSION in
+# src/t386mon.c, so a release can't carry a program that calls itself
+# something else.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Check the tag against the program's version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: v
+        run: |
+          tag=${GITHUB_REF_NAME#v}
+          app=$(sed -n 's/^#define APP_VERSION *"\(.*\)"/\1/p' src/t386mon.c)
+          rc=$(sed -n 's/.*VALUE "ProductVersion", "\(.*\)".*/\1/p' src/t386mon.rc)
+          echo "tag $GITHUB_REF_NAME, APP_VERSION $app, the resource's ProductVersion $rc"
+          if [ -z "$app" ] || [ "$app" != "$rc" ]; then
+            echo "::error::APP_VERSION ($app) and t386mon.rc's ProductVersion ($rc) differ"
+            exit 1
+          fi
+          if [ "$tag" != "$app" ] && [ "$tag" != "$app.0" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match APP_VERSION $app (want v$app)"
+            exit 1
+          fi
+          echo "version=$app" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Publish the release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: t386mon
+          path: dist
+
+      - name: Check the files against SHA256SUMS
+        working-directory: dist
+        run: |
+          ls -l
+          sha256sum -c SHA256SUMS
+
+      - name: Write the release notes
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          {
+            echo "T386MON $VERSION, a performance monitor and benchmark for Windows 95 on tiny386."
+            echo
+            echo "- \`t386mon.img\`: a 1.44 MB floppy image with \`T386MON.EXE\` and \`README.TXT\`. On tiny386 bare metal on the ESP32-S31, put it in the card's tiny386 folder and add \`fda = t386mon.img\` under \`[pc]\` in the ini that starts Windows, then Start, Run, \`A:\\T386MON.EXE\`."
+            echo "- \`T386MON.EXE\`: the program on its own, for any Windows 95 PC."
+            echo "- \`SHA256SUMS\`: the SHA-256 of both."
+            echo
+            echo "The emulator's figures need a tiny386 with the information port (my bare-metal ESP32-S31 firmware v4.3 and later); elsewhere it shows Windows' own figures. The README has the rest."
+            echo
+            echo "Built from source by GitHub Actions in Debian 12 with the toolchain versions pinned in \`ci.yml\`; the build is reproducible, so \`bash build.sh\` with the same toolchain gives the same bytes."
+            echo
+            echo '```'
+            cat dist/SHA256SUMS
+            echo '```'
+          } > notes.md
+          cat notes.md
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "T386MON $VERSION" \
+            --notes-file notes.md \
+            --verify-tag \
+            dist/T386MON.EXE dist/t386mon.img dist/SHA256SUMS

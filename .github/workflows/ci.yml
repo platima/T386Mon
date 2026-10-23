@@ -1,0 +1,107 @@
+name: CI
+
+# Builds T386MON.EXE and t386mon.img from source with the toolchain build.sh
+# names (Debian 12's mingw-w64 GCC and binutils for i686, and mtools), runs
+# build.sh's checks (imports from Windows 95's own functions only, 386
+# integer code with no x87), builds everything a second time in another
+# folder to prove the bytes come out the same, and builds PPTEST.COM.
+# release.yml calls this workflow and publishes its artifacts.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and check
+    runs-on: ubuntu-latest
+    # Debian 12 is what build.sh is written for, so the same packages build
+    # here as on a desk. The versions are pinned: apt checks each package
+    # against Debian's signed archive, and a pin that Debian has since
+    # replaced fails here rather than building with something else. To move
+    # a pin, change it here and check that the build's SHA-256 stays the same.
+    container: debian:12
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      PIN_GCC: 12.2.0-14+deb12u1+25.2+b1
+      PIN_BINUTILS_MINGW: 2.40-2+10.4
+      PIN_MINGW_DEV: 10.0.0-3
+      PIN_MTOOLS: 4.0.33-1+really4.0.32-1
+      PIN_BINUTILS: 2.40-2
+    steps:
+      - name: Install the toolchain
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            "gcc-mingw-w64-i686-win32=$PIN_GCC" \
+            "gcc-mingw-w64-i686-win32-runtime=$PIN_GCC" \
+            "gcc-mingw-w64-base=$PIN_GCC" \
+            "binutils-mingw-w64-i686=$PIN_BINUTILS_MINGW" \
+            "mingw-w64-i686-dev=$PIN_MINGW_DEV" \
+            "mingw-w64-common=$PIN_MINGW_DEV" \
+            "mtools=$PIN_MTOOLS" \
+            "binutils=$PIN_BINUTILS" \
+            python3 ca-certificates
+          dpkg-query -W gcc-mingw-w64-i686-win32 binutils-mingw-w64-i686 \
+            mingw-w64-i686-dev mtools binutils python3
+
+      - uses: actions/checkout@v7
+
+      - name: Build T386MON.EXE and t386mon.img, with the checks
+        run: bash build.sh out
+
+      - name: Build again in another folder, and compare
+        run: |
+          bash build.sh /tmp/again > /tmp/again.log 2>&1 || { cat /tmp/again.log; exit 1; }
+          cmp out/T386MON.EXE /tmp/again/T386MON.EXE
+          cmp out/t386mon.img /tmp/again/t386mon.img
+          echo "the second build is the same, byte for byte"
+
+      - name: Build PPTEST.COM
+        run: bash port-test/build.sh out
+
+      - name: Write SHA256SUMS
+        run: |
+          cd out
+          sha256sum T386MON.EXE t386mon.img > SHA256SUMS
+          cat SHA256SUMS
+          {
+            echo "### T386MON $(sed -n 's/^#define APP_VERSION *"\(.*\)"/\1/p' ../src/t386mon.c)"
+            echo
+            echo '```'
+            cat SHA256SUMS
+            sha256sum PPTEST.COM
+            echo '```'
+            echo
+            echo '```'
+            grep -E '^(pecheck|cpucheck):' pecheck.txt cpucheck.txt | sed 's/^[^:]*://'
+            i686-w64-mingw32-gcc --version | head -1
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload T386MON
+        uses: actions/upload-artifact@v7
+        with:
+          name: t386mon
+          path: |
+            out/T386MON.EXE
+            out/t386mon.img
+            out/SHA256SUMS
+          if-no-files-found: error
+
+      - name: Upload the checks and PPTEST.COM
+        uses: actions/upload-artifact@v7
+        with:
+          name: checks
+          path: |
+            out/warnings.txt
+            out/pecheck.txt
+            out/cpucheck.txt
+            out/PPTEST.COM
+          if-no-files-found: error

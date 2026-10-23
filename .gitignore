@@ -53,3 +53,32 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# T386MON: build output goes in releases and CI artifacts, never the tree
+out/
+*.EXE
+*.COM
+*.ico
+*.res
+
+# Nothing from Windows, a disk image or an SD card
+*.img
+*.ima
+*.vfd
+*.iso
+*.vhd
+*.vmdk
+*.LOG
+*.log
+*.DRV
+*.drv
+*.VXD
+*.vxd
+*.DLL
+*.exports
+
+# Game data
+*.wad
+*.WAD
+*.WL6
+*.wl6
