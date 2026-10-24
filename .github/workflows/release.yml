@@ -1,15 +1,19 @@
 name: Release
 
-# A tag v<version> (v1.2 for T386MON 1.2; v1.2.0 is taken as the same) builds
-# T386MON exactly as CI does and publishes a GitHub release with
+# A tag v<version> (v1.2.0 for T386MON 1.2; v1.2 is taken as the same)
+# builds T386MON exactly as CI does and publishes a GitHub release with
 # T386MON.EXE, t386mon.img and SHA256SUMS. The tag must match APP_VERSION in
-# src/t386mon.c, so a release can't carry a program that calls itself
-# something else.
+# src/t386mon.c and the version resource, so a release can't carry a program
+# that calls itself something else.
+#
+# Run by hand on a branch (gh workflow run release.yml --ref main), it's a
+# rehearsal: the same build, checks and release notes, and nothing published.
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -24,17 +28,24 @@ jobs:
       - uses: actions/checkout@v7
       - id: v
         run: |
-          tag=${GITHUB_REF_NAME#v}
           app=$(sed -n 's/^#define APP_VERSION *"\(.*\)"/\1/p' src/t386mon.c)
           rc=$(sed -n 's/.*VALUE "ProductVersion", "\(.*\)".*/\1/p' src/t386mon.rc)
-          echo "tag $GITHUB_REF_NAME, APP_VERSION $app, the resource's ProductVersion $rc"
-          if [ -z "$app" ] || [ "$app" != "$rc" ]; then
-            echo "::error::APP_VERSION ($app) and t386mon.rc's ProductVersion ($rc) differ"
+          rcf=$(sed -n 's/.*VALUE "FileVersion", "\(.*\)".*/\1/p' src/t386mon.rc)
+          rcn=$(sed -n 's/^PRODUCTVERSION *\([0-9]*\),\([0-9]*\),.*/\1.\2/p' src/t386mon.rc)
+          rcfn=$(sed -n 's/^FILEVERSION *\([0-9]*\),\([0-9]*\),.*/\1.\2/p' src/t386mon.rc)
+          echo "$GITHUB_REF_TYPE $GITHUB_REF_NAME; APP_VERSION $app; t386mon.rc: ProductVersion $rc, FileVersion $rcf, PRODUCTVERSION $rcn, FILEVERSION $rcfn"
+          if [ -z "$app" ] || [ "$app" != "$rc" ] || [ "$app" != "$rcf" ] || [ "$app" != "$rcn" ] || [ "$app" != "$rcfn" ]; then
+            echo "::error::APP_VERSION ($app) and t386mon.rc's versions ($rc, $rcf, $rcn, $rcfn) differ"
             exit 1
           fi
-          if [ "$tag" != "$app" ] && [ "$tag" != "$app.0" ]; then
-            echo "::error::tag $GITHUB_REF_NAME does not match APP_VERSION $app (want v$app)"
-            exit 1
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag=${GITHUB_REF_NAME#v}
+            if [ "$tag" != "$app" ] && [ "$tag" != "$app.0" ]; then
+              echo "::error::tag $GITHUB_REF_NAME does not match APP_VERSION $app (want v$app.0)"
+              exit 1
+            fi
+          else
+            echo "a rehearsal on $GITHUB_REF_NAME: no tag to check, and nothing will be published"
           fi
           echo "version=$app" >> "$GITHUB_OUTPUT"
 
@@ -58,37 +69,50 @@ jobs:
         working-directory: dist
         run: |
           ls -l
+          test "$(ls | LC_ALL=C sort | tr '\n' ' ')" = "SHA256SUMS T386MON.EXE t386mon.img "
           sha256sum -c SHA256SUMS
 
       - name: Write the release notes
         env:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then name="T386MON $GITHUB_REF_NAME"; else name="T386MON $VERSION (rehearsal)"; fi
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           {
-            echo "T386MON $VERSION, a performance monitor and benchmark for Windows 95 on tiny386."
+            echo "## $name"
             echo
-            echo "- \`t386mon.img\`: a 1.44 MB floppy image with \`T386MON.EXE\` and \`README.TXT\`. On tiny386 bare metal on the ESP32-S31, put it in the card's tiny386 folder and add \`fda = t386mon.img\` under \`[pc]\` in the ini that starts Windows, then Start, Run, \`A:\\T386MON.EXE\`."
-            echo "- \`T386MON.EXE\`: the program on its own, for any Windows 95 PC."
-            echo "- \`SHA256SUMS\`: the SHA-256 of both."
+            echo "T386MON is a performance monitor and benchmark for Windows 95 running on [tiny386](https://github.com/hchunhui/tiny386): one small window with Windows' own figures next to the emulator's, a set of drawing tests, and a log."
             echo
-            echo "The emulator's figures need a tiny386 with the information port (my bare-metal ESP32-S31 firmware v4.3 and later); elsewhere it shows Windows' own figures. The README has the rest."
+            echo "The emulator's figures need a tiny386 with the information port, which my bare-metal ESP32-S31 firmware has from v4.3 on. Elsewhere it shows Windows' own figures and times the tests by Windows' clock. The [README](https://github.com/$GITHUB_REPOSITORY#readme) has the rest."
             echo
-            echo "Built from source by GitHub Actions in Debian 12 with the toolchain versions pinned in \`ci.yml\`; the build is reproducible, so \`bash build.sh\` with the same toolchain gives the same bytes."
+            echo "### Downloads"
+            echo
+            echo "- \`t386mon.img\` - a 1.44 MB floppy image with \`T386MON.EXE\` and \`README.TXT\`. On tiny386 bare metal on the ESP32-S31, put it in the card's \`tiny386\` folder, add \`fda = t386mon.img\` under \`[pc]\` in the ini that starts Windows, then Start, Run, \`A:\\T386MON.EXE\`"
+            echo "- \`T386MON.EXE\` - the program on its own, for any Windows 95 PC"
+            echo "- \`SHA256SUMS\` - the SHA-256 of both"
+            echo
+            echo "**Verification:** \`sha256sum -c SHA256SUMS\` on Linux, \`Get-FileHash\` on Windows. The build is reproducible: \`bash build.sh\` in Debian 12 with the toolchain versions pinned in \`ci.yml\` gives the same bytes."
             echo
             echo '```'
             cat dist/SHA256SUMS
             echo '```'
+            echo
+            echo "---"
+            echo
+            echo "Built from \`$GITHUB_SHA\` by [this workflow run]($run_url), after the build's checks passed."
           } > notes.md
+          echo "name=$name" >> "$GITHUB_ENV"
           cat notes.md
+          cat notes.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create the release
+        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.version.outputs.version }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "T386MON $VERSION" \
+            --title "$name" \
             --notes-file notes.md \
             --verify-tag \
             dist/T386MON.EXE dist/t386mon.img dist/SHA256SUMS

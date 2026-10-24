@@ -36,10 +36,10 @@ I wanted it because Windows 95 on tiny386 has no Task Manager, and I wanted to k
 
 ## What it does ✨
 
-- **One 48 KB program** - `T386MON.EXE`, no installer, no DLLs beyond the four Windows 95 already has (KERNEL32, USER32, GDI32, ADVAPI32). It installs nothing and changes nothing in Windows.
+- **One 48 KB program** - `T386MON.EXE`, no installer, no DLLs beyond the four Windows 95 already has (KERNEL32, USER32, GDI32, ADVAPI32). It installs nothing and changes no settings in Windows; the only file it writes is its log.
 - **Made for the machine tiny386 emulates** - integer code for a 386 with no FPU (tiny386 runs Windows with `fpu = 0`), calling only functions Windows 95 OSR2 has. The build checks both, every time.
 - **Live figures once a second** - the panel's fps, the guest's processor load, million instructions a second and rows sent to the panel; then memory, the swap file, paging, the file system and the display mode from Windows; and the drawing, disk, timer, keyboard and mouse from tiny386.
-- **A benchmark** - nine drawing tests of 4 seconds each (fill, scroll, text three ways, a sprite, two full screen tests), with the mouse pointer parked where each test says, timed by the emulator's own clock when there is one.
+- **A benchmark** - nine tests of 4 seconds each (idle, fill, scroll, text three ways, a sprite, two full screen tests), with the mouse pointer parked where each test says, timed by the emulator's own clock when there is one.
 - **A log** - `C:\T386MON.LOG`, a line every 5 seconds plus every test's results, written to the disk once a minute so it stays out of the tests' way.
 - **Cheap to run** - about 6% of the guest at 800x480 in 16 bits in the live view, less in the compact view, about 1% minimised (PC harness figures).
 
@@ -60,7 +60,7 @@ Without the port the emulator's lines say "not running on tiny386 (no informatio
 
 ## Getting it into Windows 💾
 
-Grab `t386mon.img` (a 1.44 MB floppy image with `T386MON.EXE` and a short `README.TXT`), or `T386MON.EXE` on its own, from the [latest release](https://github.com/platima/T386Mon/releases/latest).
+Grab `t386mon.img` (a 1.44 MB floppy image with `T386MON.EXE` and a short `README.TXT`), or `T386MON.EXE` on its own, from the [latest release](https://github.com/platima/T386Mon/releases/latest). `SHA256SUMS` beside them has their SHA-256, and as the build is reproducible you can also build the same bytes yourself (see [Building from source](#building-from-source-)).
 
 ### On tiny386 bare metal on the ESP32-S31
 
@@ -94,7 +94,7 @@ Copy `T386MON.EXE` over however you like and run it. Two things to know:
 
 ## The window 🪟
 
-Buttons along the top, each with a key that works wherever the focus is:
+Buttons along the top. All but On top have keys, which work wherever the focus is:
 
 | Button | Key | What it does |
 |-|-|-|
@@ -103,7 +103,7 @@ Buttons along the top, each with a key that works wherever the focus is:
 | Run all tests | F5, Alt+R | runs the benchmark; **Esc** stops it |
 | Log now | F6, Alt+N | writes the whole live view into the log, straight away |
 | Compact | F4, Alt+C | two lines in a small window on top of the others; double-click it (or F4) to come back |
-| On top | Alt+P | keeps the full window on top too |
+| On top | none (click it, or start with `/top`) | keeps the full window on top too |
 | Windows CPU | F7, Alt+W | turns Windows' own processor figure on or off (see below) |
 
 ### The top line
@@ -114,6 +114,8 @@ Buttons along the top, each with a key that works wherever the focus is:
 | **guest N% busy** | how much of the last second the emulated processor wasn't halted - the guest's processor load, as a task manager would show it |
 | **N M instr/s** | million guest instructions a second while running, halted time left out, as the board's Ctrl+Alt+F12 speed screen shows it |
 | **N rows/s** | rows sent to the panel a second - how much of the screen is changing |
+
+With Windows' own processor figure turned on (F7), the line's last figure is that instead of rows a second.
 
 "Busy" relies on Windows halting when it has nothing to do, which it does at an idle desktop. A DOS box, or a program that polls, keeps the guest busy even when the screen looks idle. "M instr/s" counts a whole `rep` string instruction (a block fill or copy) as one, as the speed screen does, so it drops during big fills and copies.
 
@@ -247,7 +249,7 @@ T386MON's own share of the guest, measured on the PC harness at 2 million instru
 | Compact | about 4% | about 2% |
 | Tests view, or minimised | about 1.3% | about 1.4% |
 
-What it costs on the board is one of the things the board will tell us; the "This monitor" line shows it live.
+What it costs on the board is one of the things the board will tell us; the "Its own cost" line under "This monitor" shows it live.
 
 ## The information port 🔌
 
@@ -310,7 +312,7 @@ If T386MON saved you some time, or you just like seeing Windows 95 on odd hardwa
 ## Licence 📄
 
 - My own work here is MIT - see [LICENSE](LICENSE).
-- `port-test/pptest.S` and `port-test/bios.inc` say in their headers that they're offered under tiny386's licence (BSD 3-clause), as they were written alongside it.
+- `port-test/pptest.S` and `port-test/bios.inc` are offered under tiny386's licence (BSD 3-clause), as their headers say, since they were written alongside it - see [port-test/LICENSE](port-test/LICENSE).
 - Windows 95 is Microsoft's. Nothing of it is in this repo or its releases - bring your own.
 
 ## Author 👨‍💻

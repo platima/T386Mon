@@ -32,7 +32,13 @@ T386MON is a performance monitor and benchmark for Windows 95 on tiny386 (github
 - **8.3 names** for everything that goes onto the floppy or into Windows: `T386MON.EXE`, `README.TXT`, `C:\T386MON.LOG`.
 - **The information port is a versioned protocol shared with the firmware.** `perfport.h` here must stay the same bytes as the firmware's copy. Never change what an existing index means; new values take a free index with a minor version bump, made in the firmware first. T386MON checks valid bits, so it must keep working with port 1.0 and with no port at all.
 - **Cost matters**: at 800x480 with VMDisp9x each GDI call costs about 20 ms of guest time, so the once-a-second work stays small, and nothing writes to the disk during a test (each write leads to a flush to the SD card on the board).
-- **Versions move together**: `APP_VERSION` in `src/t386mon.c`, `FILEVERSION`, `PRODUCTVERSION` and the version strings in `src/t386mon.rc`, and the release tag (`v1.2` for 1.2; `release.yml` refuses a tag that doesn't match).
+- **Versions move together**: `APP_VERSION` in `src/t386mon.c`, `FILEVERSION`, `PRODUCTVERSION` and the version strings in `src/t386mon.rc`, and the release tag (`v1.2.0` for 1.2, three parts as in Plat's other repos; `release.yml` refuses a tag or resource that doesn't match).
+
+## Releases
+
+- Push a tag on `main` that matches `APP_VERSION` (`v1.2.0` for 1.2); `release.yml` builds through `ci.yml`, checks the files against `SHA256SUMS` and publishes `T386MON.EXE`, `t386mon.img` and `SHA256SUMS`.
+- `gh workflow run release.yml --ref main` is a rehearsal: the same build, checks and notes, nothing published. Run it after changing either workflow, before tagging.
+- After a release, build the tagged commit locally and compare with the release's `SHA256SUMS`; they must match.
 
 ## Never commit
 
@@ -52,4 +58,4 @@ Check `git status` and `git diff --cached --stat` before every commit.
 
 - Author Platima, as git is configured here. End each commit message with:
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
-- Contributions to upstream projects (tiny386 itself) are different: they go out as Plat alone, with no AI co-author or generated-with lines. Nothing in this repo is sent upstream.
+- Contributions to upstream projects (tiny386 itself, for example the information port if it is offered there) are different: they go out from a tiny386 clone as Plat alone, with no AI co-author or generated-with lines. This repo itself is never sent upstream.

@@ -10,6 +10,7 @@ It says what it reads on the BIOS's debug port, 0402h, a line at a time (`@pp RO
 | `bios.inc` | the output and check helpers it shares with my tiny386 BIOS tests |
 | `ppcheck.py` | checks a run's log: the port's identity, a snapshot each round, values 0 wherever the valid bits say none, counters that move, the 16 and 8-bit rounds agreeing with the 32-bit ones |
 | `build.sh` | builds PPTEST.COM |
+| `LICENSE` | the BSD 3-clause licence that `pptest.S` and `bios.inc` are offered under; the rest is MIT, as the repo is |
 
 ```sh
 bash port-test/build.sh            # PPTEST.COM in ./out

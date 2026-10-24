@@ -28,7 +28,7 @@ You are assisting with **T386MON**, a performance monitor and benchmark for Wind
 - **8.3 file names** for anything on the floppy or in Windows.
 - The information port protocol is **versioned and shared with the firmware**: `perfport.h` stays byte-identical to the firmware's copy, an index never changes meaning, new values come with a minor version from the firmware side, and T386MON must keep working with port 1.0 or no port.
 - Drawing is expensive on the target (about 20 ms of guest time a GDI call at 800x480), so keep the periodic work small and never write to the disk during a test.
-- `APP_VERSION` in `src/t386mon.c`, the versions in `src/t386mon.rc` and the release tag move together.
+- `APP_VERSION` in `src/t386mon.c`, the versions in `src/t386mon.rc` and the release tag (`v1.2.0` for 1.2) move together. A tag `v*` on `main` publishes a release through `release.yml`; running that workflow by hand on a branch is a rehearsal that publishes nothing.
 
 ## Never commit
 - Built binaries or images (`T386MON.EXE`, `t386mon.img`, `PPTEST.COM`, `out/`): they go in releases and CI artifacts.
