@@ -70,8 +70,10 @@
 
 #define PP_MAGIC                0x36383354UL    /* "T386" as four bytes */
 #define PP_VERSION_MAJOR        1
-#define PP_VERSION_MINOR        1       /* 1.1: CHANGED, CHANGED_1S */
-#define PP_VERSION              0x00010001UL    /* major << 16 | minor */
+#define PP_VERSION_MINOR        3       /* 1.1: CHANGED, CHANGED_1S; 1.2: DMA_FREE_KB,
+                                           DMA_MIN_FREE_KB; 1.3: BATTERY_PCT, _MV,
+                                           _MA, _MIN */
+#define PP_VERSION              0x00010003UL    /* major << 16 | minor */
 
 /* COMMAND */
 #define PP_CMD_NONE             0       /* nothing */
@@ -152,6 +154,9 @@
 #define PP_I_IRAM_FREE_KB       0x44    /* the board's internal RAM free now */
 #define PP_I_IRAM_LARGEST_KB    0x45    /*   its largest free block */
 #define PP_I_IRAM_MIN_FREE_KB   0x46    /*   the least free since the board started */
+#define PP_I_DMA_FREE_KB        0x47    /* 1.2: of the internal RAM, what DMA reaches,
+                                           free now (all but the S31's LP RAM) */
+#define PP_I_DMA_MIN_FREE_KB    0x48    /* 1.2:   the least free since the board started */
 
 /* the disks: the hard disk and CD images (floppies only in DISK_ACTIVITY
    and DISK_REFUSED) */
@@ -185,6 +190,18 @@
 #define PP_I_STATUS             0x6A    /* the status LED: stage | error << 8 |
                                            the last run's end << 16 (STATUS-LED.md) */
 #define PP_I_CPU_MHZ            0x6B    /* the board's processor clock */
+/* 1.3: the board's battery, from its fuel gauge (the ESP-Mosaico's BQ27220),
+   which the board reads every 2 s.  The valid bits say the build has a
+   gauge; a value it does not know (the gauge has not answered yet, or the
+   value does not apply) is PP_BATTERY_UNKNOWN. */
+#define PP_I_BATTERY_PCT        0x6C    /* 1.3: state of charge, per cent, 0 to 100 */
+#define PP_I_BATTERY_MV         0x6D    /* 1.3: the cell's voltage, mV */
+#define PP_I_BATTERY_MA         0x6E    /* 1.3: its current, mA, signed: above 0
+                                           charging, below 0 discharging (a 16-bit
+                                           reader takes it as a signed long) */
+#define PP_I_BATTERY_MIN        0x6F    /* 1.3: minutes left: to empty while
+                                           BATTERY_MA is below 0, to full while it
+                                           is above; PP_BATTERY_UNKNOWN at 0 */
 
 /* text: 4 characters an index, the first in the low byte, padded with 0;
    31 characters at most, then a 0 */
@@ -195,6 +212,10 @@
 
 #define PP_COUNT                0x80    /* PP_I_COUNT in this version; VALID0 to 3
                                            cover every index below it */
+
+/* PP_I_BATTERY_*: not known.  No real value is this (and it is not
+   0FFFFFFFFh, which BATTERY_MA reads for -1 mA). */
+#define PP_BATTERY_UNKNOWN      0x80000000UL
 
 /* PP_I_SOURCE */
 #define PP_SOURCE_NONE          0       /* no snapshot yet */

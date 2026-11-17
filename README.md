@@ -149,6 +149,7 @@ With Windows' own processor figure turned on (F7), the line's last figure is tha
 | Timer | timer ticks dropped, all and in the last second; the most owed at once |
 | Keyboard, mouse | key events, mouse reports and mouse packets a second |
 | Board | processor clock, minutes up, the status LED's code, log lines held back and dropped (board only) |
+| Battery | charge, voltage, the current in or out, and the minutes left to empty or to full (port 1.3, on a board with a fuel gauge: the ESP-Mosaico) |
 
 **This monitor**: what T386MON's own once-a-second work cost the guest, its port reads and writes a second, what a snapshot cost the emulator, and where the log is going.
 
@@ -253,7 +254,7 @@ What it costs on the board is one of the things the board will tell us; the "Its
 
 ## The information port 🔌
 
-The port is a small, versioned interface I added to the bare-metal tiny386 firmware: write an index, read a 32-bit value. One command takes a snapshot so that values read one after another belong together, and reads change nothing in the emulator or the guest. It's version 1.1, with 128 indexes covering the emulator's identity and clocks, the guest's instructions and halts, every picture the board draws, the display mode, memory, the disks, the timer, the keyboard and mouse, and the firmware and board names.
+The port is a small, versioned interface I added to the bare-metal tiny386 firmware: write an index, read a 32-bit value. One command takes a snapshot so that values read one after another belong together, and reads change nothing in the emulator or the guest. It's version 1.3, with 128 indexes covering the emulator's identity and clocks, the guest's instructions and halts, every picture the board draws, the display mode, memory, the disks, the timer, the keyboard and mouse, the battery on a board that has a fuel gauge, and the firmware and board names.
 
 - [`PROTOCOL.md`](PROTOCOL.md) says what every value means and how to read it, from DOS, a DOS box or a Win32 program.
 - [`perfport.h`](perfport.h) is the protocol as a plain C89 header, the same file as the firmware's own copy. It's all a guest program needs, 16-bit or 32-bit.

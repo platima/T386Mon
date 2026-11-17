@@ -1,4 +1,4 @@
-T386MON 1.2: how fast Windows 95 runs on tiny386
+T386MON 1.3: how fast Windows 95 runs on tiny386
 =================================================
 
 Start, Run, B:\T386MON.EXE (this floppy in B:, with another floppy such
@@ -18,7 +18,8 @@ The window shows, once a second:
     file system, the display mode;
   - tiny386's figures, from its information port: the pictures and what
     each took the board to draw, the drawing, the mode, memory, the disk,
-    the timer, the keyboard and mouse. Without the port (older firmware,
+    the timer, the keyboard and mouse, and the battery on a board with
+    a fuel gauge (the ESP-Mosaico). Without the port (older firmware,
     or another PC) it says it is not running on tiny386.
 
 Buttons and keys:

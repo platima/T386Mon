@@ -1,10 +1,10 @@
-# The tiny386 information port (perfport), version 1.1
+# The tiny386 information port (perfport), version 1.3
 
 For T386MON and for any other program inside the emulated PC that wants to know how fast tiny386 is running it. The protocol itself is [`perfport.h`](perfport.h); this note says what each value means, how to use them, how the port was chosen and checked, and what only a board can say.
 
 Claims are marked [verified] (seen in a test or a run), [inferred] (worked out, not seen) or [unknown]. "The PC harness" is the board firmware's emulator core built to run on a PC, with a virtual clock of 2 million guest instructions a second, as on the board.
 
-Version 1.0 and 1.1 were written on 2026-10-23; 1.1 added the pictures that changed (`CHANGED`, `CHANGED_1S`), the panel's real frames a second, and mended the last whole second after a pause. The port is in my bare-metal ESP32-S31 tiny386 firmware from v4.3 (2026-10-24) on, with this protocol unchanged.
+Version 1.0 and 1.1 were written on 2026-10-23; 1.1 added the pictures that changed (`CHANGED`, `CHANGED_1S`), the panel's real frames a second, and mended the last whole second after a pause. The port is in my bare-metal ESP32-S31 tiny386 firmware from v4.3 (2026-10-24) on. 1.2 added the internal RAM that DMA reaches (`DMA_FREE_KB`, `DMA_MIN_FREE_KB`), and 1.3 (2026-11-17) the battery of a board with a fuel gauge (`BATTERY_PCT`, `_MV`, `_MA`, `_MIN`: the ESP-Mosaico). Neither changed what an existing index means.
 
 
 ## 1. In short
@@ -100,12 +100,12 @@ Text (`PP_I_FIRMWARE`, `PP_I_BOARD`): eight indexes of four characters each, the
 
 ## 5. The values
 
-"Board" is the ESP32 firmware (Korvo-1 and DOS board alike); "harness" is the PC harness. Y: filled; 0: valid but always 0 there; -: not filled (valid bit clear, reads 0).
+"Board" is the ESP32 firmware (Korvo-1, DOS board and ESP-Mosaico alike; "Mosaico" where only the ESP-Mosaico fills it); "harness" is the PC harness. Y: filled; 0: valid but always 0 there; -: not filled (valid bit clear, reads 0).
 
 | Index | Name (`PP_I_`) | Unit, kind | Board | Harness | What |
 |-|-|-|-|-|-|
 | 00h | MAGIC | live | Y | Y | 36383354h |
-| 01h | VERSION | live | Y | Y | 00010001h (1.0: 00010000h) |
+| 01h | VERSION | live | Y | Y | 00010003h (1.0: 00010000h, 1.1: 00010001h, 1.2: 00010002h) |
 | 02h | COUNT | live | Y | Y | 80h |
 | 03h | SNAPSHOTS | live | Y | Y | snapshots taken since the emulator started (anyone's) |
 | 04h to 07h | VALID0 to 3 | bits | Y | Y | which indexes this build fills |
@@ -152,6 +152,8 @@ Text (`PP_I_FIRMWARE`, `PP_I_BOARD`): eight indexes of four characters each, the
 | 44h | IRAM_FREE_KB | KiB | Y | - | internal RAM free |
 | 45h | IRAM_LARGEST_KB | KiB | Y | - | its largest free block |
 | 46h | IRAM_MIN_FREE_KB | KiB | Y | - | the least internal RAM free since the board started |
+| 47h | DMA_FREE_KB | KiB | Y | - | 1.2: of the internal RAM, what DMA reaches (all but the S31's LP RAM), free now |
+| 48h | DMA_MIN_FREE_KB | KiB | Y | - | 1.2: the least of it free since the board started |
 | 50h | DISK_READS | total | Y | Y | reads of the hard disk and CD images |
 | 51h | DISK_WRITES | total | Y | Y | writes |
 | 52h | DISK_READ_SECTORS | sectors, total | Y | Y | 512 bytes each |
@@ -174,10 +176,16 @@ Text (`PP_I_FIRMWARE`, `PP_I_BOARD`): eight indexes of four characters each, the
 | 69h | LOG_DROPPED | total | Y | - | lines dropped from the UART's queue |
 | 6Ah | STATUS | | Y | - | the status LED: stage, the error shown << 8, the last run's end << 16 (stage 6 is "the PC runs") |
 | 6Bh | CPU_MHZ | MHz | Y | - | the board's processor clock |
+| 6Ch | BATTERY_PCT | %, level | Mosaico | - | 1.3: the battery's state of charge, 0 to 100 |
+| 6Dh | BATTERY_MV | mV, level | Mosaico | - | 1.3: the cell's voltage |
+| 6Eh | BATTERY_MA | mA, level | Mosaico | - | 1.3: its current, signed: above 0 charging, below 0 discharging (a 16-bit program takes it as a `signed long`) |
+| 6Fh | BATTERY_MIN | minutes, level | Mosaico | - | 1.3: time left, to empty while `BATTERY_MA` is below 0 and to full while it is above |
 | 70h to 77h | FIRMWARE | text | Y | Y | the firmware's version ("v4.3" in v4.3; the harness: "pc-harness") |
 | 78h to 7Fh | BOARD | text | Y | Y | "ESP32-S31-Korvo-1" or "DOS board" (the harness: "PC harness, esp-korvo1") |
 
-"card" in the harness column: filled only when the harness reaches the disk image through the card's FatFs, as the board does; with a plain image file those three stay clear. The indexes not named (0Eh, 0Fh, 17h to 1Fh, 39h to 3Fh, 47h to 4Fh, 5Ch to 5Fh, 63h, 67h, 6Ch to 6Fh) are free for later minor versions; they read 0 with their valid bit clear [verified: host test].
+"card" in the harness column: filled only when the harness reaches the disk image through the card's FatFs, as the board does; with a plain image file those three stay clear. The indexes not named (0Eh, 0Fh, 17h to 1Fh, 39h to 3Fh, 49h to 4Fh, 5Ch to 5Fh, 63h, 67h) are free for later minor versions; they read 0 with their valid bit clear [verified: host test].
+
+The four battery values come from the board's fuel gauge (the ESP-Mosaico's BQ27220), which the board reads every 2 seconds on a task of its own; the snapshot only copies the last reading. Their valid bits say the build has a gauge. A value it does not know reads `PP_BATTERY_UNKNOWN`, 80000000h: before the gauge has first answered, after a read that failed, a state of charge above 100, and `BATTERY_MIN` while no current flows or when the gauge has no estimate. No real value is 80000000h; -1 mA reads 0FFFFFFFFh [verified: the firmware's host test of its readings].
 
 `CHANGED` against the harness's own count of pictures that sent a row: equal at the end of every Windows and DOS run with the port [verified: 16 runs for 1.1, and 15 more when v4.3 was checked].
 
@@ -202,6 +210,7 @@ On the PC the harness also draws pictures of its own: each picture it saves for 
 | Disk | reads and writes a second, KiB a second (sectors / 2), the average wait (the difference of `DISK_BUSY_US` over that of reads plus writes), the longest |
 | The guest's timer | `TIMER_DROPPED` rising: the emulator was held up longer than a tick (55 ms), and the guest's clock fell behind by as much |
 | Memory | guest and video memory, PSRAM and internal RAM free |
+| The battery | `BATTERY_PCT`, `_MV`, `_MA` (in or out by its sign) and `_MIN`, to empty or to full by the same sign (1.3; a board with a fuel gauge) |
 | Input | key and mouse events a second, mouse packets a second (what the guest's mouse driver handles) |
 | The monitor's own cost | `PORT_IO` a second and `SNAP_US` |
 
@@ -255,7 +264,8 @@ The port is a few small pieces, all behind `TINY386_PERFPORT`, so tiny386's othe
 | `pc.c` | six `case` lines in the port switches, and `pc_vga_step()` timing each picture and drawing it through `perfport_redraw()` |
 | `vga.c`, `vga.h` | four counts at the end of the VGA state (VBE pictures, whole ones, blocks, rows: one-line increments in the VBE drawing) and `vga_get_info()` |
 | `i8042.c`, `i8042.h` | three counts: key events, mouse reports, mouse packets |
-| `esp/main/speed.c` | the board's values, from the speed screen's own counters, registered when the PC starts |
+| `esp/main/speed.c` | the board's values, from the speed screen's own counters, registered when the PC starts; from 1.3 also a board's own values (`BOARD_PERFPORT_FILL`) |
+| `esp/main/battery_mosaico.c` | 1.3: the ESP-Mosaico's BQ27220, read every 2 s on core 0, and its four values for the snapshot |
 | `esp/main/disk_image.c`, `.h` | sectors read and written and the time waited, beside the existing counts |
 | `esp/main/status_led.c`, `.h` | what the status LED shows |
 | `esp/main/CMakeLists.txt` | `perfport.c` and `TINY386_PERFPORT` |
@@ -266,7 +276,7 @@ Ctrl+Alt+F11 (v4.2 on) turns `vbe_blocks` on and off while the PC runs; `VBE_BLO
 
 ## 11. What only a board can say [unknown]
 
-* Every figure the harness cannot have: the drawing's time on core 0, PSRAM and internal RAM, the status code, the log's counts, the disk's waits on the card.
+* Every figure the harness cannot have: the drawing's time on core 0, PSRAM and internal RAM, the status code, the log's counts, the disk's waits on the card, the battery.
 * What a snapshot costs on the board (`PP_I_SNAP_US`).
 * Whether the speed screen and the port agree to the digit (they read the same counters, so they should [inferred]).
 * That a Win32 program under Windows 95 on the board reaches the port as T386MON does in the harness (the same guest code, so it should [inferred]).

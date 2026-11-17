@@ -41,7 +41,7 @@
 #include "perfport.h"
 
 #define APP_NAME    "T386MON"
-#define APP_VERSION "1.2"
+#define APP_VERSION "1.3"
 
 typedef unsigned long u32;
 
@@ -330,7 +330,7 @@ static const unsigned char pp_ranges[][2] = {
 	{ PP_I_PICTURES, PP_I_CHANGED_1S }, { PP_I_MODE_KIND, PP_I_SCREEN_HEIGHT },
 	{ PP_I_GUEST_MEM_KB, PP_I_IRAM_MIN_FREE_KB }, { PP_I_DISK_READS, PP_I_DISK_ACTIVITY },
 	{ PP_I_TIMER_OWED_MAX, PP_I_TIMER_CATCHUP }, { PP_I_KEY_EVENTS, PP_I_MOUSE_PACKETS },
-	{ PP_I_LOG_HELD, PP_I_CPU_MHZ },
+	{ PP_I_LOG_HELD, PP_I_BATTERY_MIN },
 };
 
 static void pp_read(u32 *v)
@@ -708,7 +708,7 @@ enum {
 	L_HEAD,
 	L_SWIN, L_WCPU, L_WMEM, L_WSWAP, L_WPAGE, L_WFS, L_WDISP,
 	L_SEMU, L_EID, L_ECPU, L_EPIC, L_EDRAW, L_EVBE, L_EMODE, L_EMEM, L_EBMEM, L_EDISK,
-	L_EDERR, L_ETIME, L_EINPUT, L_EBOARD,
+	L_EDERR, L_ETIME, L_EINPUT, L_EBOARD, L_EBATT,
 	L_SMON, L_MCOST, L_MLOG,
 	L_N
 };
@@ -738,6 +738,7 @@ static const struct {
 	{ 'L', "Timer" },
 	{ 'L', "Keyboard, mouse" },
 	{ 'L', "Board" },
+	{ 'L', "Battery" },
 	{ 'S', "This monitor" },
 	{ 'L', "Its own cost" },
 	{ 'L', "Log" },
@@ -768,6 +769,8 @@ static const char T_EDERR[] = "{4} waits over a tick, {4} refused at first, {4} 
 static const char T_ETIME[] = "{6} ticks dropped, {4} in the last second; at most {4} owed at once";
 static const char T_EINPUT[] = "{4} keys/s, {4} mouse reports/s, {4} mouse packets/s";
 static const char T_EBOARD[] = "{4} MHz, up {5} min; status {-8}; log {6} lines held back, {6} dropped";
+/* 1.3: charge, voltage, current in or out, the time left to empty or full */
+static const char T_EBATT[] = "{3}%, {5} V, {4} mA {-24}";
 static const char T_MCOST[] = "{5} ms a second, {5}% of the time; {5} port ins and outs/s; snapshot {4} us";
 static const char T_MCOST_NOPP[] = "{5} ms a second, {5}% of the time";
 static const char T_MLOG[] = "{-20} a line every {3} s, to the disk every {3} s; last {-8}";
@@ -964,7 +967,7 @@ static void build_live(const Sample *a, const Sample *b)
 
 	/* the emulator */
 	if (!b->pp) {
-		for (x = L_EID; x <= L_EBOARD; x++) {
+		for (x = L_EID; x <= L_EBATT; x++) {
 			line_set(&LN[x], T_STR);
 			LN[x].fv[0][0] = 0;
 		}
@@ -1077,6 +1080,45 @@ static void build_live(const Sample *a, const Sample *b)
 		} else {
 			line_set(l, T_STR);
 			fset(l, 0, "not known here");
+		}
+		/* 1.3: the board's fuel gauge (the ESP-Mosaico's); a value it does
+		   not know is PP_BATTERY_UNKNOWN, a dash here */
+		l = &LN[L_EBATT];
+		if (VALID(b, PP_I_BATTERY_PCT)) {
+			u32 pct = b->v[PP_I_BATTERY_PCT], mv = b->v[PP_I_BATTERY_MV];
+			u32 ma = b->v[PP_I_BATTERY_MA], left = b->v[PP_I_BATTERY_MIN];
+			long sma = (long) ma;
+			if (pct == PP_BATTERY_UNKNOWN && mv == PP_BATTERY_UNKNOWN &&
+			    ma == PP_BATTERY_UNKNOWN) {
+				line_set(l, T_STR);
+				fset(l, 0, "%s", "the gauge has not answered yet");
+			} else {
+				line_set(l, T_EBATT);
+				if (pct == PP_BATTERY_UNKNOWN)
+					fset(l, 0, "%s", "-");
+				else
+					fu(l, 0, pct);
+				if (mv == PP_BATTERY_UNKNOWN)
+					fset(l, 1, "%s", "-");
+				else
+					fh(l, 1, mv / 10);
+				if (ma == PP_BATTERY_UNKNOWN) {
+					fset(l, 2, "%s", "-");
+					fset(l, 3, "%s", "");
+				} else {
+					fu(l, 2, sma < 0 ? (u32) -sma : ma);
+					if (sma == 0)
+						fset(l, 3, "%s", "");
+					else if (left == PP_BATTERY_UNKNOWN)
+						fset(l, 3, "%s", sma < 0 ? "out" : "in");
+					else
+						fset(l, 3, "%s; %u min to %s", sma < 0 ? "out" : "in", left,
+						     sma < 0 ? "empty" : "full");
+				}
+			}
+		} else {
+			line_set(l, T_STR);
+			fset(l, 0, "no fuel gauge on this board");
 		}
 	}
 
